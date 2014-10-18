@@ -4,23 +4,34 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.GridLayout;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
+
 import javax.swing.BorderFactory;
+import javax.swing.JCheckBox;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.event.CellEditorListener;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
-import kg.apc.jmeter.JMeterPluginsUtils;
+
 import kg.apc.charting.AbstractGraphRow;
 import kg.apc.charting.DateTimeRenderer;
 import kg.apc.charting.GraphPanelChart;
 import kg.apc.charting.rows.GraphRowSumValues;
+import kg.apc.jmeter.JMeterPluginsUtils;
 import kg.apc.jmeter.gui.ButtonPanelAddCopyRemove;
 import kg.apc.jmeter.gui.GuiBuilderHelper;
+
 import org.apache.jmeter.control.LoopController;
 import org.apache.jmeter.control.gui.LoopControlPanel;
 import org.apache.jmeter.gui.util.PowerTableModel;
@@ -67,6 +78,12 @@ public class UltimateThreadGroupGui
     protected PowerTableModel tableModel;
     protected JTable grid;
     protected ButtonPanelAddCopyRemove buttons;
+    
+	// Date format to schedule
+	private SimpleDateFormat								scheduleDateFormat		= new SimpleDateFormat(
+			"yyyy/MM/dd hh:mm:ss");
+
+	private final JTextField								jTextFieldScheduleDate	= new JTextField("");
 
     /**
      *
@@ -96,6 +113,7 @@ public class UltimateThreadGroupGui
         panel.setBorder(BorderFactory.createTitledBorder("Threads Schedule"));
         panel.setPreferredSize(new Dimension(200, 200));
 
+        panel.add(createSchedulePanel(), BorderLayout.NORTH);
         JScrollPane scroll = new JScrollPane(createGrid());
         scroll.setPreferredSize(scroll.getMinimumSize());
         panel.add(scroll, BorderLayout.CENTER);
@@ -104,6 +122,46 @@ public class UltimateThreadGroupGui
 
         return panel;
     }
+     
+    private JPanel createSchedulePanel() {
+
+		// Textfield for date
+		jTextFieldScheduleDate.setVisible(false);
+
+		final JLabel labelStartTime = new JLabel("Schedule start time", JLabel.LEFT);
+		labelStartTime.setVisible(false);
+
+		// Schedule checkbox. If activated, display JTextField for date
+		final JCheckBox schedule = new JCheckBox("Activate scheduling");
+		schedule.setSelected(false);
+		schedule.setToolTipText("If checked start time will be used");
+
+		// Listener on schedule checkbox click
+		schedule.addItemListener(new ItemListener() {
+			@Override
+			public void itemStateChanged(ItemEvent e) {
+				// Checkbox is selected so populated date with current date according to pattern
+				if (schedule.isSelected()) {
+					jTextFieldScheduleDate.setText(scheduleDateFormat.format(new Date()));
+					labelStartTime.setVisible(true);
+					jTextFieldScheduleDate.setVisible(true);
+				} else {
+					jTextFieldScheduleDate.setText("");
+					labelStartTime.setVisible(false);
+					jTextFieldScheduleDate.setVisible(false);
+				}
+
+			}
+		});
+
+		JPanel panel = new JPanel(new GridLayout(0, 4, 5, 5));
+		panel.add(schedule);
+		panel.add(labelStartTime);
+		panel.add(jTextFieldScheduleDate);
+		panel.add(new JLabel());
+
+		return panel;
+	}
 
     private JTable createGrid() {
         grid = new JTable();
