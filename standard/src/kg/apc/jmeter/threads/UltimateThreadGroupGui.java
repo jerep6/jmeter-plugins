@@ -7,6 +7,7 @@ import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +33,7 @@ import kg.apc.jmeter.JMeterPluginsUtils;
 import kg.apc.jmeter.gui.ButtonPanelAddCopyRemove;
 import kg.apc.jmeter.gui.GuiBuilderHelper;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.control.LoopController;
 import org.apache.jmeter.control.gui.LoopControlPanel;
 import org.apache.jmeter.gui.util.PowerTableModel;
@@ -79,11 +81,12 @@ public class UltimateThreadGroupGui
     protected JTable grid;
     protected ButtonPanelAddCopyRemove buttons;
     
+    // Informations for scheduling
 	// Date format to schedule
 	private SimpleDateFormat								scheduleDateFormat		= new SimpleDateFormat(
-			"yyyy/MM/dd hh:mm:ss");
-
-	private final JTextField								jTextFieldScheduleDate	= new JTextField("");
+			"yyyy/MM/dd HH:mm:ss");
+	private final JCheckBox jCheckBoxSchedule = new JCheckBox("Activate scheduling");
+	private final JTextField jTextFieldScheduleDate	= new JTextField("");
 
     /**
      *
@@ -132,21 +135,22 @@ public class UltimateThreadGroupGui
 		labelStartTime.setVisible(false);
 
 		// Schedule checkbox. If activated, display JTextField for date
-		final JCheckBox schedule = new JCheckBox("Activate scheduling");
-		schedule.setSelected(false);
-		schedule.setToolTipText("If checked start time will be used");
+		jCheckBoxSchedule.setSelected(false);
+		jCheckBoxSchedule.setToolTipText("If checked start time will be used");
 
 		// Listener on schedule checkbox click
-		schedule.addItemListener(new ItemListener() {
+		jCheckBoxSchedule.addItemListener(new ItemListener() {
 			@Override
 			public void itemStateChanged(ItemEvent e) {
-				// Checkbox is selected so populated date with current date according to pattern
-				if (schedule.isSelected()) {
-					jTextFieldScheduleDate.setText(scheduleDateFormat.format(new Date()));
+				// Checkbox is selected => display texfield and populate it
+				if (jCheckBoxSchedule.isSelected()) {
+					// If no previous date => current date
+					if(StringUtils.isBlank(jTextFieldScheduleDate.getText())) {
+						jTextFieldScheduleDate.setText(scheduleDateFormat.format(new Date()));
+					}
 					labelStartTime.setVisible(true);
 					jTextFieldScheduleDate.setVisible(true);
 				} else {
-					jTextFieldScheduleDate.setText("");
 					labelStartTime.setVisible(false);
 					jTextFieldScheduleDate.setVisible(false);
 				}
@@ -155,7 +159,7 @@ public class UltimateThreadGroupGui
 		});
 
 		JPanel panel = new JPanel(new GridLayout(0, 4, 5, 5));
-		panel.add(schedule);
+		panel.add(jCheckBoxSchedule);
 		panel.add(labelStartTime);
 		panel.add(jTextFieldScheduleDate);
 		panel.add(new JLabel());
@@ -205,11 +209,13 @@ public class UltimateThreadGroupGui
             CollectionProperty rows = JMeterPluginsUtils.tableModelRowsToCollectionProperty(tableModel, UltimateThreadGroup.DATA_PROPERTY);
             utg.setData(rows);
             utg.setSamplerController((LoopController) loopPanel.createTestElement());
+            utg.setScheduleDate(getScheduleDate());
+            utg.setScheduleActive(jCheckBoxSchedule.isSelected());
         }
         super.configureTestElement(tg);
     }
 
-    @Override
+	@Override
     public void configure(TestElement tg) {
         //log.info("Configure");
         super.configure(tg);
@@ -227,6 +233,10 @@ public class UltimateThreadGroupGui
             log.warn("Received null property instead of collection");
         }
 
+        //Schedule
+        jCheckBoxSchedule.setSelected(utg.getScheduleActive());
+        jTextFieldScheduleDate.setText(utg.getScheduleDate() != null ? scheduleDateFormat.format(utg.getScheduleDate()): "");
+        
         TestElement te = (TestElement) tg.getProperty(AbstractThreadGroup.MAIN_CONTROLLER).getObjectValue();
         if (te != null) {
             loopPanel.configure(te);
@@ -336,4 +346,20 @@ public class UltimateThreadGroupGui
         super.clearGui();
         tableModel.clearData();
     }
+    
+    /**
+     * @return schedule date if defined (and well formated) by user
+     */
+    private Date getScheduleDate() {
+    	Date d = null;
+    	if(StringUtils.isNotBlank(jTextFieldScheduleDate.getText())) {
+    		try {
+				d = scheduleDateFormat.parse(jTextFieldScheduleDate.getText());
+				log.warn("schedule date OK: "+d);
+			} catch (ParseException e) {
+				log.warn("schedule date isn't well formated: " + jTextFieldScheduleDate.getText());
+			}
+    	}
+		return d;
+	}
 }

@@ -1,5 +1,8 @@
 package kg.apc.jmeter.threads;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,6 +36,11 @@ public abstract class AbstractSimpleThreadGroup extends AbstractThreadGroup {
     private long tgStartTime = -1;
     private static final long TOLERANCE = 1000;
 
+    // Properties to save scheduling into jmx
+    private static final String PROP_SCHEDULE_ACTIVE = "scheduleActive";
+    private static final String PROP_SCHEDULE_DATE = "scheduleDate";
+    private SimpleDateFormat								scheduleDateFormat		= new SimpleDateFormat(
+			"yyyy/MM/dd HH:mm:ss");
 
     /**
      * No-arg constructor.
@@ -60,11 +68,11 @@ public abstract class AbstractSimpleThreadGroup extends AbstractThreadGroup {
         log.info("Starting thread group number " + groupCount
                 + " threads " + numThreads);
        
-            long now = System.currentTimeMillis(); // needs to be same time for all threads in the group
+            long begin = scheduleMillis() ; // needs to be same time for all threads in the group
             final JMeterContext context = JMeterContextService.getContext();
             for (int i = 0; running && i < numThreads; i++) {
                 JMeterThread jmThread = makeThread(groupCount, notifier, threadGroupTree, engine, i, context);
-                scheduleThread(jmThread, now); // set start and end time
+                scheduleThread(jmThread, begin); // set start and end time
                 Thread newThread = new Thread(jmThread, jmThread.getThreadName());
                 registerStartedThread(jmThread, newThread);
                 newThread.start();
@@ -73,6 +81,14 @@ public abstract class AbstractSimpleThreadGroup extends AbstractThreadGroup {
         log.info("Started thread group number "+groupCount);
     }
 
+	/**
+	 * Compute the start time on which start threads
+	 * @return time (in ms) to start threads
+	 */
+    private long scheduleMillis() {
+    	return getScheduleActive() && getScheduleDate() != null ? getScheduleDate().getTime() : System.currentTimeMillis(); 
+    }
+    
     private void registerStartedThread(JMeterThread jMeterThread, Thread newThread) {
         allThreads.put(jMeterThread, newThread);
     }
@@ -201,5 +217,31 @@ public abstract class AbstractSimpleThreadGroup extends AbstractThreadGroup {
         tree.traverse(cloner);
         return cloner.getClonedTree();
     }
+    
+    
+    public boolean getScheduleActive() {
+    	return getPropertyAsBoolean(PROP_SCHEDULE_ACTIVE);
+    }
+    public void setScheduleActive(boolean active) {
+    	setProperty(PROP_SCHEDULE_ACTIVE, active);
+    }
+    
+    public Date getScheduleDate() {
+    	Date d = null;
+    	String s = getPropertyAsString(PROP_SCHEDULE_DATE);
+    	if(s != null) {
+    		try {
+				d = scheduleDateFormat.parse(s);
+			} catch (ParseException e) {
+				log.warn("schedule date isn't well formated: " +s);
+			}
+    	}
+		return d;
+	}
+	public void setScheduleDate(Date scheduleDate) {
+        setProperty(PROP_SCHEDULE_DATE, scheduleDate != null ? scheduleDateFormat.format(scheduleDate): null);
+    }
+	
+	
 }
 
