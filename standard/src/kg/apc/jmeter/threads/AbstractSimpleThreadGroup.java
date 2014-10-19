@@ -82,11 +82,20 @@ public abstract class AbstractSimpleThreadGroup extends AbstractThreadGroup {
     }
 
 	/**
-	 * Compute the start time on which start threads
+	 * Compute start time on which start threads
+	 * If active AND furture date delay start.
+	 * Else start now
 	 * @return time (in ms) to start threads
 	 */
     private long scheduleMillis() {
-    	return getScheduleActive() && getScheduleDate() != null ? getScheduleDate().getTime() : System.currentTimeMillis(); 
+    	// active scheduling and future date
+    	if(getScheduleActive() && getScheduleDate() != null && getScheduleDate().compareTo(new Date()) > 0) {
+    		return getScheduleDate().getTime();
+    	}
+    	// No active scheduling or past date => now
+    	else {
+    		return System.currentTimeMillis();
+    	}
     }
     
     private void registerStartedThread(JMeterThread jMeterThread, Thread newThread) {
